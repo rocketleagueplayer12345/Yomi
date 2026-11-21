@@ -40,11 +40,11 @@ const manifest = {
     logo: BASE_URL + "/yomi.png", 
     description: "The ultimate Sukebei gateway. The Biggest Collection of Hentai.",
     types: ["anime"], 
-    resources: [
-        "catalog",
-        { name: "meta", types: ["anime"], idPrefixes: ["anilist:", "sukebei:"] },
-        { name: "stream", types: ["anime"], idPrefixes: ["anilist:", "sukebei:", "kitsu:"] } 
-    ],
+   resources: [
+       "catalog",
+       { name: "meta", types: ["anime"], idPrefixes: ["anilist:", "sukebei:", "kitsu:"] },
+       { name: "stream", types: ["anime"], idPrefixes: ["anilist:", "sukebei:", "kitsu:"] }
+   ],
     catalogs: [
         { id: "sukebei_latest", type: "anime", name: "Yomi Latest Releases" },
         { id: "sukebei_trending", type: "anime", name: "Yomi Trending" },
