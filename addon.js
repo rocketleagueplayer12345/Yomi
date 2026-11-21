@@ -247,80 +247,241 @@ builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
 // Processes requests for detailed metadata (episodes, descriptions) when a user clicks on a catalog item.
 // Supports both official AniList IDs and fallback Sukebei base64 queries.
 //===============
+
 builder.defineMetaHandler(async ({ type, id, config }) => {
     const userConfig = parseConfig(config);
-    if (!id.startsWith("anilist:") && !id.startsWith("sukebei:")) return Promise.resolve({ meta: null });
-    let meta = null, searchTitle = "";
+
+    if (
+        !id.startsWith("anilist:") &&
+        !id.startsWith("sukebei:") &&
+        !id.startsWith("kitsu:")
+    ) {
+        return { meta: null };
+    }
+
+    let meta = null;
+    let searchTitle = "";
+
     try {
+        // ANILIST METADATA
         if (id.startsWith("anilist:")) {
-            let aniListId = id.split(":")[1];
+            const aniListId = id.split(":")[1];
             const rawMeta = await getAnimeMeta(aniListId);
-            if (rawMeta) { 
-                searchTitle = rawMeta.name; 
-                let clonedMeta = { ...rawMeta, id }; 
-                if (userConfig.useEnglishTitles && clonedMeta.englishName) clonedMeta.name = clonedMeta.englishName;
+
+            if (rawMeta) {
+                searchTitle = rawMeta.name;
+
+                let clonedMeta = { ...rawMeta, id };
+
+                if (userConfig.useEnglishTitles && clonedMeta.englishName) {
+                    clonedMeta.name = clonedMeta.englishName;
+                }
+
                 meta = clonedMeta;
-            } 
-            else { meta = { id, type: "anime", name: "Unknown", poster: generateDynamicPoster("Unknown"), baseTime: Date.now(), epMeta: {} }; }
+            } else {
+                meta = {
+                    id,
+                    type: "anime",
+                    name: "Unknown",
+                    poster: generateDynamicPoster("Unknown"),
+                    baseTime: Date.now(),
+                    epMeta: {}
+                };
+            }
+
+        // KITSU METADATA
+        } else if (id.startsWith("kitsu:")) {
+            const kitsuId = id.split(":")[1];
+
+            const res = await axios.get(
+                `https://anime-kitsu.strem.fun/meta/anime/kitsu:${kitsuId}.json`,
+                { timeout: 6000 }
+            );
+
+            const kitsuMeta = res.data?.meta;
+
+            if (kitsuMeta) {
+                searchTitle = kitsuMeta.name || kitsuMeta.englishName || "";
+
+                meta = {
+                    ...kitsuMeta,
+                    id,
+                    type: "anime",
+                    name: kitsuMeta.name || "Unknown",
+                    poster: kitsuMeta.poster || generateDynamicPoster("Unknown"),
+                    baseTime: Date.now(),
+                    epMeta: {}
+                };
+            }
+
+        // SUKEBEI METADATA
         } else if (id.startsWith("sukebei:")) {
             searchTitle = fromBase64Safe(id.split(":")[1]);
-            let cleanQuery = searchTitle.replace(/^\[.*?\]\s*/g, "").replace(/\[.*?\]/g, "").replace(/\(.*?\)/g, "").trim();
+
+            let cleanQuery = searchTitle
+                .replace(/^\[.*?\]\s*/g, "")
+                .replace(/\[.*?\]/g, "")
+                .replace(/\(.*?\)/g, "")
+                .trim();
+
             const malData = await getJikanMeta(cleanQuery);
-            if (malData) { 
-                let clonedMeta = { id, type: "anime", name: malData.name || searchTitle.replace(/^\[.*?\]\s*/g, "").trim(), englishName: malData.englishName, poster: malData.poster || generateDynamicPoster(searchTitle), background: malData.background, description: malData.description, releaseInfo: malData.releaseInfo, released: malData.released, episodes: malData.episodes, baseTime: malData.baseTime, epMeta: {} };
-                if (userConfig.useEnglishTitles && clonedMeta.englishName) clonedMeta.name = clonedMeta.englishName;
+
+            if (malData) {
+                let clonedMeta = {
+                    id,
+                    type: "anime",
+                    name: malData.name || searchTitle.replace(/^\[.*?\]\s*/g, "").trim(),
+                    englishName: malData.englishName,
+                    poster: malData.poster || generateDynamicPoster(searchTitle),
+                    background: malData.background,
+                    description: malData.description,
+                    releaseInfo: malData.releaseInfo,
+                    released: malData.released,
+                    episodes: malData.episodes,
+                    baseTime: malData.baseTime,
+                    epMeta: {}
+                };
+
+                if (userConfig.useEnglishTitles && clonedMeta.englishName) {
+                    clonedMeta.name = clonedMeta.englishName;
+                }
+
                 meta = clonedMeta;
-            } 
-            else { meta = { id, type: "anime", name: searchTitle.replace(/^\[.*?\]\s*/g, "").trim(), poster: generateDynamicPoster(searchTitle), baseTime: Date.now(), epMeta: {} }; }
+            } else {
+                meta = {
+                    id,
+                    type: "anime",
+                    name: searchTitle.replace(/^\[.*?\]\s*/g, "").trim(),
+                    poster: generateDynamicPoster(searchTitle),
+                    baseTime: Date.now(),
+                    epMeta: {}
+                };
+            }
         }
-        
+
+        if (!meta) {
+            return { meta: null, cacheMaxAge: 60 };
+        }
+
         meta.type = "anime";
+
         let epCount = meta.episodes || 1;
-        
+
         if (epCount === 1 || !meta.episodes) {
             try {
                 let sQuery = sanitizeSearchQuery(searchTitle);
-                if (KNOWN_ALIASES[sQuery.toLowerCase()]) sQuery = KNOWN_ALIASES[sQuery.toLowerCase()];
+
+                if (KNOWN_ALIASES[sQuery.toLowerCase()]) {
+                    sQuery = KNOWN_ALIASES[sQuery.toLowerCase()];
+                }
+
                 let torrents = await searchSukebeiForHentai(sQuery);
+
                 if (torrents.length === 0) {
                     const words = sQuery.split(/\s+/);
-                    if (words.length >= 3) torrents = await searchSukebeiForHentai(words.slice(0, 3).join(" "));
-                    else if (words.length === 2 && sQuery.length > 4) torrents = await searchSukebeiForHentai(sQuery);
+
+                    if (words.length >= 3) {
+                        torrents = await searchSukebeiForHentai(
+                            words.slice(0, 3).join(" ")
+                        );
+                    } else if (words.length === 2 && sQuery.length > 4) {
+                        torrents = await searchSukebeiForHentai(sQuery);
+                    }
                 }
+
                 let maxDetected = 1;
+
                 torrents.forEach(t => {
                     const batch = getBatchRange(t.title);
-                    if (batch && batch.end > maxDetected && batch.end < 50) maxDetected = batch.end;
+
+                    if (batch && batch.end > maxDetected && batch.end < 50) {
+                        maxDetected = batch.end;
+                    }
+
                     const ext = extractEpisodeNumber(t.title);
-                    if (ext && ext > maxDetected && ext < 50) maxDetected = ext;
+
+                    if (ext && ext > maxDetected && ext < 50) {
+                        maxDetected = ext;
+                    }
                 });
-                if (maxDetected > epCount) epCount = maxDetected;
-            } catch(e) {}
+
+                if (maxDetected > epCount) {
+                    epCount = maxDetected;
+                }
+            } catch (e) {}
         }
-        
+
         const videos = [];
-        const episodeThumbnail = meta.background || meta.poster || "https://dummyimage.com/600x337/1a1a1a/e91e63.png?text=YOMI+EPISODE";
-        const jikanEps = meta.idMal ? await fetchEpisodeDetails(meta.idMal) : {};
+
+        const episodeThumbnail =
+            meta.background ||
+            meta.poster ||
+            "https://dummyimage.com/600x337/1a1a1a/e91e63.png?text=YOMI+EPISODE";
+
+        const jikanEps = meta.idMal
+            ? await fetchEpisodeDetails(meta.idMal)
+            : {};
+
         const baseTime = meta.baseTime || Date.now();
         const epMeta = meta.epMeta || {};
         const nextAiring = meta.nextAiringEpisode;
-        
+
         for (let i = 1; i <= epCount; i++) {
             const epData = epMeta[i] || {};
             const jData = jikanEps[i] || {};
-            const finalTitle = jData.title || epData.title || ("Episode " + i);
+
+            const finalTitle =
+                jData.title ||
+                epData.title ||
+                ("Episode " + i);
+
             let finalDate;
-            if (jData.aired) { finalDate = new Date(jData.aired).toISOString(); } 
-            else if (nextAiring && nextAiring.episode && nextAiring.airingAt) {
+
+            if (jData.aired) {
+                finalDate = new Date(jData.aired).toISOString();
+            } else if (
+                nextAiring &&
+                nextAiring.episode &&
+                nextAiring.airingAt
+            ) {
                 const weeksBehind = nextAiring.episode - i;
-                finalDate = new Date((nextAiring.airingAt * 1000) - (weeksBehind * 7 * 24 * 60 * 60 * 1000)).toISOString();
-            } else { finalDate = new Date(baseTime + (i - 1) * 7 * 24 * 60 * 60 * 1000).toISOString(); }
-            videos.push({ id: meta.id + ":" + 1 + ":" + i, title: finalTitle, season: 1, episode: i, released: finalDate, thumbnail: epData.thumbnail || episodeThumbnail });
+
+                finalDate = new Date(
+                    (nextAiring.airingAt * 1000) -
+                    (weeksBehind * 7 * 24 * 60 * 60 * 1000)
+                ).toISOString();
+            } else {
+                finalDate = new Date(
+                    baseTime + (i - 1) * 7 * 24 * 60 * 60 * 1000
+                ).toISOString();
+            }
+
+            videos.push({
+                id: meta.id + ":" + 1 + ":" + i,
+                title: finalTitle,
+                season: 1,
+                episode: i,
+                released: finalDate,
+                thumbnail: epData.thumbnail || episodeThumbnail
+            });
         }
+
         meta.videos = videos;
+
         return { meta, cacheMaxAge: 604800 };
+
     } catch (err) {
-        return { meta: { id, type: "anime", name: "Error", poster: generateDynamicPoster("Error") }, cacheMaxAge: 60 };
+        console.error("[META] Error:", err.message);
+
+        return {
+            meta: {
+                id,
+                type: "anime",
+                name: "Error",
+                poster: generateDynamicPoster("Error")
+            },
+            cacheMaxAge: 60
+        };
     }
 });
 
