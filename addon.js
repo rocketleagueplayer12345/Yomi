@@ -45,12 +45,18 @@ const manifest = {
        { name: "meta", types: ["anime"], idPrefixes: ["anilist:", "sukebei:", "kitsu:"] },
        { name: "stream", types: ["anime"], idPrefixes: ["anilist:", "sukebei:", "kitsu:"] }
    ],
-    catalogs: [
-        { id: "sukebei_latest", type: "anime", name: "Yomi Latest Releases" },
-        { id: "sukebei_trending", type: "anime", name: "Yomi Trending" },
-        { id: "sukebei_top", type: "anime", name: "Yomi Top Rated" },
-        { id: "sukebei_search", type: "anime", name: "Yomi Search", extra: [{ name: "search", isRequired: true }] }
-    ],
+    
+catalogs: [
+    { id: "sukebei_latest", type: "anime", name: "Yomi Latest Releases" },
+    { id: "sukebei_trending", type: "anime", name: "Yomi Trending" },
+    { id: "sukebei_top", type: "anime", name: "Yomi Top Rated" },
+    { id: "sukebei_search", type: "anime", name: "Yomi Search", extra: [{ name: "search", isRequired: true }] },
+
+    { id: "kitsu-anime-trending", type: "anime", name: "Kitsu Trending" },
+    { id: "kitsu-anime-airing", type: "anime", name: "Kitsu Top Airing" },
+    { id: "kitsu-anime-popular", type: "anime", name: "Kitsu Most Popular" },
+    { id: "kitsu-anime-rating", type: "anime", name: "Kitsu Highest Rated" }
+],
     config: [{ key: "Yomi", type: "text", title: "Yomi Internal Payload", required: false }],
     behaviorHints: { configurable: true, configurationRequired: true },
 };
