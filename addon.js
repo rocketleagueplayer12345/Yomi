@@ -93,6 +93,57 @@ function applyTitlePreference(metas, userConfig) {
     return metas.map(m => ({ ...m, name: m.englishName || m.name }));
 }
 
+// Fetch enough Hanime.red pages to fill one Stremio catalog batch.
+async function getHanimeRedCatalogBatch(tag, skip, pageSize = 36) {
+    const targetCount = skip + pageSize;
+    const MAX_SOURCE_PAGES = 100;
+
+    const collected = [];
+    const seen = new Set();
+    let pagesFetched = 0;
+
+    for (
+        let sourcePage = 1;
+        sourcePage <= MAX_SOURCE_PAGES && collected.length < targetCount;
+        sourcePage++
+    ) {
+        const sourceSeries = await browseHanimeRedByTag(
+            tag,
+            "Most Recent",
+            sourcePage
+        );
+
+        pagesFetched++;
+
+        if (!Array.isArray(sourceSeries) || sourceSeries.length === 0) {
+            break;
+        }
+
+        const matchingSeries = filterSeriesByTag(sourceSeries, tag);
+
+        for (const item of matchingSeries) {
+            const key = String(
+                item.titleSlug || item.title || ""
+            ).toLowerCase().trim();
+
+            if (!key || seen.has(key)) continue;
+
+            seen.add(key);
+            collected.push(item);
+
+            if (collected.length >= targetCount) break;
+        }
+    }
+
+    return {
+        metas: collected
+            .slice(skip, skip + pageSize)
+            .map(item => makeHanimeRedMeta(item, toBase64Safe)),
+        pagesFetched,
+        totalCollected: collected.length
+    };
+}
+
 //===============
 // SIZE PARSER
 // Converts string-based file sizes into raw bytes for numerical comparison.
@@ -242,40 +293,42 @@ builder.defineCatalogHandler(async ({ type, id, extra = {}, config }) => {
         : "";
 
     // LATEST CATALOG
+    
+    // LATEST CATALOG
     if (id === "sukebei_latest" && userConfig.showLatest !== false) {
-        
-if (selectedGenre) {
-    const PAGE_SIZE = 36;
-    const skip = Math.max(0, Number(extra.skip) || 0);
-    const page = Math.floor(skip / PAGE_SIZE) + 1;
 
-    const series = await browseHanimeRedByTag(
-        selectedGenre,
-        "Most Recent",
-        page
-    );
+        if (selectedGenre) {
+            const PAGE_SIZE = 36;
+            const skip = Math.max(
+                0,
+                Number.parseInt(extra.skip, 10) || 0
+            );
 
-    const filtered = filterSeriesByTag(series, selectedGenre);
+            const batch = await getHanimeRedCatalogBatch(
+                selectedGenre,
+                skip,
+                PAGE_SIZE
+            );
 
-    const metas = filtered.map(item =>
-        makeHanimeRedMeta(item, toBase64Safe)
-    );
+            const finalMetas = applyTitlePreference(
+                batch.metas,
+                userConfig
+            );
 
-    const finalMetas = applyTitlePreference(metas, userConfig);
+            console.log("[YOMI PAGINATION]", {
+                catalog: id,
+                genre: selectedGenre,
+                skip,
+                pagesFetched: batch.pagesFetched,
+                totalCollected: batch.totalCollected,
+                returned: finalMetas.length
+            });
 
-    console.log("[YOMI PAGINATION]", {
-        catalog: id,
-        genre: selectedGenre,
-        skip,
-        hanimePage: page,
-        returned: finalMetas.length
-    });
-
-    return {
-        metas: finalMetas,
-        cacheMaxAge: 300
-    };
-}
+            return {
+                metas: finalMetas,
+                cacheMaxAge: 300
+            };
+        }
 
         const metas = (await getLatestAdultAnime())
             .map(m => ({ ...m, type: "anime" }));
@@ -285,6 +338,7 @@ if (selectedGenre) {
             cacheMaxAge: 14400
         };
     }
+
 
     // TRENDING CATALOG
     if (id === "sukebei_trending" && userConfig.showTrending !== false) {
