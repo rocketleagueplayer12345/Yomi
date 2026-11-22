@@ -12,8 +12,36 @@ const { getRouter } = require("stremio-addon-sdk");
 const { addonInterface, manifest, parseConfig } = require("./addon");
 const { selectBestVideoFile } = require("./lib/parser");
 
+
 const app = express();
-app.use(express.json()); 
+app.use(express.json());
+
+// TEMPORARY REQUEST DEBUG LOGGER
+// Logs incoming paths without exposing configuration data or API keys.
+app.use((req, res, next) => {
+    const parts = req.path.split("/");
+
+    // Hide configuration JSON embedded in manifest URLs.
+    if (parts[parts.length - 1] === "manifest.json" && parts.length > 2) {
+        parts[1] = "[CONFIG]";
+    }
+
+    // Hide API keys and hashes in subtitle/stream routes.
+    if (parts[1] === "resolve" || parts[1] === "sub") {
+        if (parts.length > 3) parts[3] = "[REDACTED]";
+        if (parts.length > 4) parts[4] = "[REDACTED]";
+    }
+
+    const safePath = parts.join("/");
+    console.log(`[YOMI HTTP IN] ${req.method} ${safePath}`);
+
+    res.on("finish", () => {
+        console.log(`[YOMI HTTP OUT] ${req.method} ${safePath} -> ${res.statusCode}`);
+    });
+
+    next();
+});
+ 
 
 //===============
 // CORS HEADERS
