@@ -390,27 +390,27 @@ if (id === "sukebei_trending" && userConfig.showTrending !== false) {
             Number.parseInt(extra.skip, 10) || 0
         );
 
-        const batch = await getHanimeRedCatalogBatch(
-            selectedGenre,
-            skip,
-            PAGE_SIZE,
-            "Most Popular"
-        );
+     const batch = await getHanimeRedCatalogBatch(
+    selectedGenre,
+    skip,
+    PAGE_SIZE,
+    "Most Recent"
+);
 
-        const finalMetas = applyTitlePreference(
-            batch.metas,
-            userConfig
-        );
+const finalMetas = applyTitlePreference(
+    batch.metas,
+    userConfig
+);
 
-        console.log("[YOMI PAGINATION]", {
-            catalog: id,
-            genre: selectedGenre,
-            skip,
-            sort: "Most Popular",
-            pagesFetched: batch.pagesFetched,
-            totalCollected: batch.totalCollected,
-            returned: finalMetas.length
-        });
+console.log("[YOMI PAGINATION]", {
+    catalog: id,
+    genre: selectedGenre,
+    skip,
+    sort: "Most Recent",
+    pagesFetched: batch.pagesFetched,
+    totalCollected: batch.totalCollected,
+    returned: finalMetas.length
+});
 
         return {
             metas: finalMetas,
