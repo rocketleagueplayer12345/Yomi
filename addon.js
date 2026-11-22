@@ -11,7 +11,7 @@ const { addonBuilder } = require("stremio-addon-sdk");
 const axios = require("axios");
 
 const { searchAdultAnime, getAnimeMeta, getTrendingAdultAnime, getTopAdultAnime, getLatestAdultAnime, getJikanMeta, fetchEpisodeDetails } = require("./lib/anilist");
-const { SAFE_HENTAITV_TAGS, searchHentaiTVSeries, browseHentaiTVByTag, findExactSeriesMatch, makeHentaiTVMeta, filterSeriesByTag, safeTags } = require("./lib/hentaitv");
+const { SAFE_HANIMERED_TAGS, browseHanimeRedByTag, findExactSeriesMatch, makeHanimeRedMeta, filterSeriesByTag, safeTags } = require("./lib/hanimered");
 const { searchSukebeiForHentai, cleanTorrentTitle } = require("./lib/sukebei");
 const { checkRD, checkTorbox, getActiveRD, getActiveTorbox } = require("./lib/debrid");
 const { extractEpisodeNumber, getBatchRange, isEpisodeMatch, selectBestVideoFile, isSeasonBatch, verifyTitleMatch } = require("./lib/parser");
