@@ -900,6 +900,21 @@ builder.defineStreamHandler(async ({ type, id, config }) => {
         }
 
         torrents = validTorrents;
+        // Hide torrents with zero or unknown seeders.
+const beforeSeederFilter = torrents.length;
+
+torrents = torrents.filter(t => {
+    return (parseInt(t.seeders, 10) || 0) > 0;
+});
+
+console.log(
+    `[PIPELINE] Seeder filter -> Removed ${beforeSeederFilter - torrents.length} torrents with zero seeders.`
+);
+
+if (!torrents.length) {
+    console.log(`[PIPELINE] 🛑 End: No torrents with active seeders.`);
+    return { streams: [], cacheMaxAge: 60 };
+}
         if (!torrents.length) {
             console.log(`[PIPELINE] 🛑 End: Absolutely zero torrents left.`);
             return { streams: [], cacheMaxAge: 60 };
