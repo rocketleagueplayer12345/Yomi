@@ -227,6 +227,14 @@ function generateDynamicPoster(title) {
 // lib/hanimered.js. If a permitted tag is added to lib/hanimered-tags.js, no
 // handler changes are needed.
 builder.defineCatalogHandler(async ({ type, id, extra = {}, config }) => {
+       
+    console.log('[YOMI CATALOG HANDLER HIT]', {
+        type,
+        id,
+        genre: extra.genre,
+        skip: extra.skip
+    });
+    
     const userConfig = parseConfig(config);
     const selectedGenre = typeof extra.genre === "string" ? extra.genre.trim() : "";
 
