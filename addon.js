@@ -11,6 +11,7 @@ const { addonBuilder } = require("stremio-addon-sdk");
 const axios = require("axios");
 
 const { searchAdultAnime, getAnimeMeta, getTrendingAdultAnime, getTopAdultAnime, getLatestAdultAnime, getJikanMeta, fetchEpisodeDetails } = require("./lib/anilist");
+const { SAFE_HENTAITV_TAGS, searchHentaiTVSeries, browseHentaiTVByTag, findExactSeriesMatch, makeHentaiTVMeta, filterSeriesByTag, safeTags } = require("./lib/hentaitv");
 const { searchSukebeiForHentai, cleanTorrentTitle } = require("./lib/sukebei");
 const { checkRD, checkTorbox, getActiveRD, getActiveTorbox } = require("./lib/debrid");
 const { extractEpisodeNumber, getBatchRange, isEpisodeMatch, selectBestVideoFile, isSeasonBatch, verifyTitleMatch } = require("./lib/parser");
@@ -35,7 +36,7 @@ function fromBase64Safe(str) { return Buffer.from(str.replace(/-/g, "+").replace
 //===============
 const manifest = {
     id: "org.community.yomi",
-    version: "9.3.4", 
+    version: "9.3.5", 
     name: "Yomi",
     logo: BASE_URL + "/yomi.png", 
     description: "The ultimate Sukebei gateway. The Biggest Collection of Hentai.",
@@ -46,16 +47,19 @@ const manifest = {
        { name: "stream", types: ["anime"], idPrefixes: ["anilist:", "sukebei:", "kitsu:"] }
    ],
     
+// TAG EDIT AREA 1/3: Every Yomi catalog exposes the same Hentai.tv-derived
+// genre options. To add a permitted source tag, edit lib/hentaitv-tags.js;
+// this shared array automatically updates every catalog after restart.
+// The Kitsu catalog stubs from the previous manifest had no matching catalog
+// handler in this addon, so they returned empty results and are not advertised.
 catalogs: [
-    { id: "sukebei_latest", type: "anime", name: "Yomi Latest Releases" },
-    { id: "sukebei_trending", type: "anime", name: "Yomi Trending" },
-    { id: "sukebei_top", type: "anime", name: "Yomi Top Rated" },
-    { id: "sukebei_search", type: "anime", name: "Yomi Search", extra: [{ name: "search", isRequired: true }] },
-
-    { id: "kitsu-anime-trending", type: "anime", name: "Kitsu Trending" },
-    { id: "kitsu-anime-airing", type: "anime", name: "Kitsu Top Airing" },
-    { id: "kitsu-anime-popular", type: "anime", name: "Kitsu Most Popular" },
-    { id: "kitsu-anime-rating", type: "anime", name: "Kitsu Highest Rated" }
+    { id: "sukebei_latest", type: "anime", name: "Yomi Latest Releases", extra: [{ name: "genre", options: SAFE_HENTAITV_TAGS, isRequired: false }] },
+    { id: "sukebei_trending", type: "anime", name: "Yomi Trending", extra: [{ name: "genre", options: SAFE_HENTAITV_TAGS, isRequired: false }] },
+    { id: "sukebei_top", type: "anime", name: "Yomi Top Rated", extra: [{ name: "genre", options: SAFE_HENTAITV_TAGS, isRequired: false }] },
+    { id: "sukebei_search", type: "anime", name: "Yomi Search", extra: [
+        { name: "search", isRequired: true },
+        { name: "genre", options: SAFE_HENTAITV_TAGS, isRequired: false }
+    ] }
 ],
     config: [{ key: "Yomi", type: "text", title: "Yomi Internal Payload", required: false }],
     behaviorHints: { configurable: true, configurationRequired: true },
@@ -218,32 +222,95 @@ function generateDynamicPoster(title) {
 // CATALOG HANDLER
 // Processes requests for the Stremio discover catalogs (Latest, Trending, Top, Search).
 //===============
-builder.defineCatalogHandler(async ({ type, id, extra, config }) => {
+// TAG EDIT AREA 2/3: Catalog filtering and metadata enrichment live here.
+// The Hentai.tv API returns episode records with `tags`; lib/hentaitv.js groups
+// those records into series and retains only the safe, source-exact tag names.
+// If a new tag is added to lib/hentaitv-tags.js, no handler changes are needed.
+builder.defineCatalogHandler(async ({ type, id, extra = {}, config }) => {
     const userConfig = parseConfig(config);
-    if (id === "sukebei_latest" && userConfig.showLatest !== false) return { metas: applyTitlePreference((await getLatestAdultAnime()).map(m => ({ ...m, type: "anime" })), userConfig), cacheMaxAge: 14400 };
-    if (id === "sukebei_trending" && userConfig.showTrending !== false) return { metas: applyTitlePreference((await getTrendingAdultAnime()).map(m => ({ ...m, type: "anime" })), userConfig), cacheMaxAge: 43200 };
-    if (id === "sukebei_top" && userConfig.showTop !== false) return { metas: applyTitlePreference((await getTopAdultAnime()).map(m => ({ ...m, type: "anime" })), userConfig), cacheMaxAge: 43200 };
-    
+    const selectedGenre = typeof extra.genre === "string" ? extra.genre.trim() : "";
+
+    // For genre-filtered browse catalogs, use Hentai.tv's own genre browse API.
+    // This avoids dozens of per-title requests and keeps Render memory/network use low.
+    if (id === "sukebei_latest" && userConfig.showLatest !== false) {
+        if (selectedGenre) {
+            const series = await browseHentaiTVByTag(selectedGenre, "Most Recent", extra.skip ? Math.floor(Number(extra.skip) / 28) + 1 : 1);
+            const metas = filterSeriesByTag(series, selectedGenre).map(item => makeHentaiTVMeta(item, toBase64Safe));
+            return { metas: applyTitlePreference(metas, userConfig), cacheMaxAge: 21600 };
+        }
+        const metas = (await getLatestAdultAnime()).map(m => ({ ...m, type: "anime" }));
+        return { metas: applyTitlePreference(metas, userConfig), cacheMaxAge: 14400 };
+    }
+
+    if (id === "sukebei_trending" && userConfig.showTrending !== false) {
+        if (selectedGenre) {
+            const series = await browseHentaiTVByTag(selectedGenre, "Trending", extra.skip ? Math.floor(Number(extra.skip) / 28) + 1 : 1);
+            const metas = filterSeriesByTag(series, selectedGenre).map(item => makeHentaiTVMeta(item, toBase64Safe));
+            return { metas: applyTitlePreference(metas, userConfig), cacheMaxAge: 21600 };
+        }
+        const metas = (await getTrendingAdultAnime()).map(m => ({ ...m, type: "anime" }));
+        return { metas: applyTitlePreference(metas, userConfig), cacheMaxAge: 43200 };
+    }
+
+    if (id === "sukebei_top" && userConfig.showTop !== false) {
+        if (selectedGenre) {
+            const series = await browseHentaiTVByTag(selectedGenre, "Top Rated", extra.skip ? Math.floor(Number(extra.skip) / 28) + 1 : 1);
+            const metas = filterSeriesByTag(series, selectedGenre).map(item => makeHentaiTVMeta(item, toBase64Safe));
+            return { metas: applyTitlePreference(metas, userConfig), cacheMaxAge: 21600 };
+        }
+        const metas = (await getTopAdultAnime()).map(m => ({ ...m, type: "anime" }));
+        return { metas: applyTitlePreference(metas, userConfig), cacheMaxAge: 43200 };
+    }
+
     if (id === "sukebei_search" && extra.search) {
         let cleanQuery = sanitizeSearchQuery(extra.search);
         const lowerQuery = cleanQuery.toLowerCase();
         if (KNOWN_ALIASES[lowerQuery]) cleanQuery = KNOWN_ALIASES[lowerQuery];
-        
-        const [anilistMetas, sukebeiTorrents] = await Promise.all([searchAdultAnime(extra.search), searchSukebeiForHentai(cleanQuery)]);
-        const finalMetas = anilistMetas.map(m => { m.type = "anime"; return m; });
+
+        const [anilistMetas, sukebeiTorrents, hentaiTVSeries] = await Promise.all([
+            searchAdultAnime(extra.search),
+            searchSukebeiForHentai(cleanQuery),
+            searchHentaiTVSeries(cleanQuery)
+        ]);
+        const finalMetas = anilistMetas.map(m => ({ ...m, type: "anime" }));
         const rawGroups = {};
-        
+
         sukebeiTorrents.forEach(t => {
             const cleanName = cleanTorrentTitle(t.title);
             if (cleanName.length > 2 && !rawGroups[cleanName]) rawGroups[cleanName] = t;
         });
-        
+
         Object.keys(rawGroups).forEach(cleanName => {
-            if (!anilistMetas.some(m => m.name.toLowerCase().includes(cleanName.toLowerCase()))) {
+            if (!finalMetas.some(m => m.name && m.name.toLowerCase() === cleanName.toLowerCase())) {
                 finalMetas.push({ id: "sukebei:" + toBase64Safe(cleanName), type: "anime", name: cleanName.replace(/^\[.*?\]\s*/g, "").trim(), poster: generateDynamicPoster(cleanName) });
             }
         });
-        return { metas: applyTitlePreference(finalMetas, userConfig), cacheMaxAge: finalMetas.length === 0 ? 60 : 86400 };
+
+        // Attach tags only when Hentai.tv returned an exact series-title match.
+        // When a genre is selected, include Hentai.tv series not already present
+        // in AniList/Sukebei results so the genre search can still discover them.
+        const seenNames = new Set();
+        const enriched = [];
+        for (const meta of finalMetas) {
+            const match = findExactSeriesMatch(meta.name, hentaiTVSeries) || findExactSeriesMatch(meta.englishName, hentaiTVSeries);
+            const enrichedMeta = match ? { ...meta, genres: safeTags(match.tags), hentaiTvSlug: match.titleSlug } : meta;
+            if (!selectedGenre || (enrichedMeta.genres || []).some(tag => tag.toLowerCase() === selectedGenre.toLowerCase())) {
+                enriched.push(enrichedMeta);
+                seenNames.add(String(enrichedMeta.name || "").toLowerCase());
+            }
+        }
+
+        if (selectedGenre) {
+            const matchingSeries = filterSeriesByTag(hentaiTVSeries, selectedGenre);
+            for (const series of matchingSeries) {
+                if (!seenNames.has(series.title.toLowerCase())) {
+                    enriched.push(makeHentaiTVMeta(series, toBase64Safe));
+                    seenNames.add(series.title.toLowerCase());
+                }
+            }
+        }
+
+        return { metas: applyTitlePreference(enriched, userConfig), cacheMaxAge: enriched.length === 0 ? 60 : 21600 };
     }
     return { metas: [] };
 });
@@ -367,6 +434,20 @@ builder.defineMetaHandler(async ({ type, id, config }) => {
 
         if (!meta) {
             return { meta: null, cacheMaxAge: 60 };
+        }
+
+        // TAG EDIT AREA 3/3: Detail-page metadata enrichment.
+        // This performs one cached Hentai.tv title search when a user opens an item.
+        // Only exact title/titleSlug matches are trusted; unmatched items stay untagged.
+        try {
+            const htvSeries = await searchHentaiTVSeries(meta.name || searchTitle);
+            const htvMatch = findExactSeriesMatch(meta.name, htvSeries) || findExactSeriesMatch(searchTitle, htvSeries);
+            if (htvMatch) {
+                meta.genres = safeTags(htvMatch.tags);
+                meta.hentaiTvSlug = htvMatch.titleSlug;
+            }
+        } catch (tagError) {
+            // Tag enrichment is optional and must never break metadata or stream resolution.
         }
 
         meta.type = "anime";

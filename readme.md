@@ -5,7 +5,7 @@
 <h1 align="center">YOMI: Your Forbidden Gateway</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-9.3.0-e91e63.svg?style=for-the-badge" alt="Version">
+  <img src="https://img.shields.io/badge/version-9.3.5-e91e63.svg?style=for-the-badge" alt="Version">
   <img src="https://img.shields.io/badge/Stremio-Addon-8a5a9e?style=for-the-badge&logo=stremio" alt="Stremio Addon">
   <img src="https://img.shields.io/badge/Status-Online-success?style=for-the-badge" alt="Status Online">
   <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License MIT">
@@ -94,3 +94,30 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+```
+</details>
+
+
+## Hentai.tv genre filters and adding tags
+
+Yomi's supported genre filter names are based on the categories listed by Hentai.tv at <https://hentai.tv/genres>. The integration reads Hentai.tv's `/api/search` and `/api/browse` endpoints for title tags and genre-filtered catalog results. A title receives tags only when Yomi can match it to a Hentai.tv series by an exact normalized title or series slug; unmatched titles are left untagged rather than guessed.
+
+### Where to edit tags later
+
+1. **`lib/hentaitv-tags.js` — master tag list.** Add a verified Hentai.tv category using the exact spelling and capitalization shown on the source site. This is the only place to add a display/filter tag. The list intentionally excludes categories that promote sexual content involving minors.
+2. **`lib/hentaitv-tags.js` — safety/canonicalization helpers.** `isSafeHentaiTVTag()` and `getCanonicalHentaiTVTag()` decide whether a returned API tag is allowed and map it back to the exact display spelling. Do not add aliases here; add the source's exact tag to the master list instead.
+3. **`lib/hentaitv.js` — metadata tag normalization.** `safeTags()` filters API tags against the master list. `groupVideosIntoSeries()` unions episode tags into a series. `findExactSeriesMatch()` controls how Hentai.tv results are matched to Yomi titles. Edit this matching logic only if Hentai.tv changes its response format or title conventions.
+4. **`addon.js` — Stremio catalog options.** The `manifest.catalogs` entries use `SAFE_HENTAITV_TAGS` for the `genre` option. The same array is shared across all active Yomi catalogs, so a new permitted tag appears in every catalog after restart.
+5. **`addon.js` — catalog filtering.** The `defineCatalogHandler` block reads `extra.genre`. The latest/trending/top catalogs use Hentai.tv's genre browse endpoint; Yomi Search uses Hentai.tv search results and keeps exact matches.
+6. **`addon.js` — detail metadata enrichment.** The meta handler looks up Hentai.tv tags when an item is opened. This is optional and cached; a failed lookup does not block metadata or streams.
+7. **`lib/hentaitv.js` — memory/network limits.** `HENTAITV_CACHE_TTL_MS`, `HENTAITV_CACHE_MAX_ENTRIES`, `HENTAITV_CACHE_MAX_SERIES_PER_ENTRY`, `HENTAITV_TIMEOUT_MS`, and the 1 MB response limit control the new integration's footprint. Keep these bounded for Render's 512 MB RAM free tier.
+8. **`lib/anilist.js` — shared AniList/Jikan cache.** `CACHE_TTL` and `MAX_CACHE_ENTRIES` control the existing metadata cache. Increase these only after measuring actual Render memory usage.
+
+### Adding a new permitted Hentai.tv tag
+
+- Verify the exact category on Hentai.tv's category page.
+- Add the exact source spelling to `SAFE_HENTAITV_TAGS` in `lib/hentaitv-tags.js`.
+- Restart/redeploy Yomi. The manifest options are generated from this shared list at process startup.
+- Test the tag on Latest, Trending, Top Rated, and Search. Check that results are returned only when Hentai.tv supplies that tag.
+- Do not add tags for sexualized depictions of minors or create alternate spellings that do not exist on Hentai.tv.
+
