@@ -36,7 +36,7 @@ function fromBase64Safe(str) { return Buffer.from(str.replace(/-/g, "+").replace
 //===============
 const manifest = {
     id: "org.community.yomi",
-    version: "9.3.5", 
+    version: "9.3.6", 
     name: "Yomi",
     logo: BASE_URL + "/yomi.png", 
     description: "The ultimate Sukebei gateway. The Biggest Collection of Hentai.",
@@ -47,18 +47,18 @@ const manifest = {
        { name: "stream", types: ["anime"], idPrefixes: ["anilist:", "sukebei:", "kitsu:"] }
    ],
     
-// TAG EDIT AREA 1/3: Every Yomi catalog exposes the same Hentai.tv-derived
-// genre options. To add a permitted source tag, edit lib/hentaitv-tags.js;
+// TAG EDIT AREA 1/3: Every Yomi catalog exposes the same Hanime.red-derived
+// genre options. To add a permitted source tag, edit lib/hanimered-tags.js;
 // this shared array automatically updates every catalog after restart.
 // The Kitsu catalog stubs from the previous manifest had no matching catalog
 // handler in this addon, so they returned empty results and are not advertised.
 catalogs: [
-    { id: "sukebei_latest", type: "anime", name: "Yomi Latest Releases", extra: [{ name: "genre", options: SAFE_HENTAITV_TAGS, isRequired: false }] },
-    { id: "sukebei_trending", type: "anime", name: "Yomi Trending", extra: [{ name: "genre", options: SAFE_HENTAITV_TAGS, isRequired: false }] },
-    { id: "sukebei_top", type: "anime", name: "Yomi Top Rated", extra: [{ name: "genre", options: SAFE_HENTAITV_TAGS, isRequired: false }] },
+    { id: "sukebei_latest", type: "anime", name: "Yomi Latest Releases", extra: [{ name: "genre", options: SAFE_HANIMERED_TAGS, isRequired: false }] },
+    { id: "sukebei_trending", type: "anime", name: "Yomi Trending", extra: [{ name: "genre", options: SAFE_HANIMERED_TAGS, isRequired: false }] },
+    { id: "sukebei_top", type: "anime", name: "Yomi Top Rated", extra: [{ name: "genre", options: SAFE_HANIMERED_TAGS, isRequired: false }] },
     { id: "sukebei_search", type: "anime", name: "Yomi Search", extra: [
         { name: "search", isRequired: true },
-        { name: "genre", options: SAFE_HENTAITV_TAGS, isRequired: false }
+        { name: "genre", options: SAFE_HANIMERED_TAGS, isRequired: false }
     ] }
 ],
     config: [{ key: "Yomi", type: "text", title: "Yomi Internal Payload", required: false }],
@@ -223,19 +223,19 @@ function generateDynamicPoster(title) {
 // Processes requests for the Stremio discover catalogs (Latest, Trending, Top, Search).
 //===============
 // TAG EDIT AREA 2/3: Catalog filtering and metadata enrichment live here.
-// The Hentai.tv API returns episode records with `tags`; lib/hentaitv.js groups
-// those records into series and retains only the safe, source-exact tag names.
-// If a new tag is added to lib/hentaitv-tags.js, no handler changes are needed.
+// Hanime.red tag archive pages are parsed into compact series entries by
+// lib/hanimered.js. If a permitted tag is added to lib/hanimered-tags.js, no
+// handler changes are needed.
 builder.defineCatalogHandler(async ({ type, id, extra = {}, config }) => {
     const userConfig = parseConfig(config);
     const selectedGenre = typeof extra.genre === "string" ? extra.genre.trim() : "";
 
-    // For genre-filtered browse catalogs, use Hentai.tv's own genre browse API.
+    // For genre-filtered browse catalogs, use Hanime.red's own tag archive page.
     // This avoids dozens of per-title requests and keeps Render memory/network use low.
     if (id === "sukebei_latest" && userConfig.showLatest !== false) {
         if (selectedGenre) {
-            const series = await browseHentaiTVByTag(selectedGenre, "Most Recent", extra.skip ? Math.floor(Number(extra.skip) / 28) + 1 : 1);
-            const metas = filterSeriesByTag(series, selectedGenre).map(item => makeHentaiTVMeta(item, toBase64Safe));
+            const series = await browseHanimeRedByTag(selectedGenre, "Most Recent", extra.skip ? Math.floor(Number(extra.skip) / 36) + 1 : 1);
+            const metas = filterSeriesByTag(series, selectedGenre).map(item => makeHanimeRedMeta(item, toBase64Safe));
             return { metas: applyTitlePreference(metas, userConfig), cacheMaxAge: 21600 };
         }
         const metas = (await getLatestAdultAnime()).map(m => ({ ...m, type: "anime" }));
@@ -244,8 +244,8 @@ builder.defineCatalogHandler(async ({ type, id, extra = {}, config }) => {
 
     if (id === "sukebei_trending" && userConfig.showTrending !== false) {
         if (selectedGenre) {
-            const series = await browseHentaiTVByTag(selectedGenre, "Trending", extra.skip ? Math.floor(Number(extra.skip) / 28) + 1 : 1);
-            const metas = filterSeriesByTag(series, selectedGenre).map(item => makeHentaiTVMeta(item, toBase64Safe));
+            const series = await browseHanimeRedByTag(selectedGenre, "Most Recent", extra.skip ? Math.floor(Number(extra.skip) / 36) + 1 : 1);
+            const metas = filterSeriesByTag(series, selectedGenre).map(item => makeHanimeRedMeta(item, toBase64Safe));
             return { metas: applyTitlePreference(metas, userConfig), cacheMaxAge: 21600 };
         }
         const metas = (await getTrendingAdultAnime()).map(m => ({ ...m, type: "anime" }));
@@ -254,8 +254,8 @@ builder.defineCatalogHandler(async ({ type, id, extra = {}, config }) => {
 
     if (id === "sukebei_top" && userConfig.showTop !== false) {
         if (selectedGenre) {
-            const series = await browseHentaiTVByTag(selectedGenre, "Top Rated", extra.skip ? Math.floor(Number(extra.skip) / 28) + 1 : 1);
-            const metas = filterSeriesByTag(series, selectedGenre).map(item => makeHentaiTVMeta(item, toBase64Safe));
+            const series = await browseHanimeRedByTag(selectedGenre, "Most Recent", extra.skip ? Math.floor(Number(extra.skip) / 36) + 1 : 1);
+            const metas = filterSeriesByTag(series, selectedGenre).map(item => makeHanimeRedMeta(item, toBase64Safe));
             return { metas: applyTitlePreference(metas, userConfig), cacheMaxAge: 21600 };
         }
         const metas = (await getTopAdultAnime()).map(m => ({ ...m, type: "anime" }));
@@ -267,11 +267,11 @@ builder.defineCatalogHandler(async ({ type, id, extra = {}, config }) => {
         const lowerQuery = cleanQuery.toLowerCase();
         if (KNOWN_ALIASES[lowerQuery]) cleanQuery = KNOWN_ALIASES[lowerQuery];
 
-        const [anilistMetas, sukebeiTorrents, hentaiTVSeries] = await Promise.all([
+        const [anilistMetas, sukebeiTorrents] = await Promise.all([
             searchAdultAnime(extra.search),
-            searchSukebeiForHentai(cleanQuery),
-            searchHentaiTVSeries(cleanQuery)
+            searchSukebeiForHentai(cleanQuery)
         ]);
+        const hanimeRedSeries = selectedGenre ? await browseHanimeRedByTag(selectedGenre, "Most Recent", extra.skip ? Math.floor(Number(extra.skip) / 36) + 1 : 1) : [];
         const finalMetas = anilistMetas.map(m => ({ ...m, type: "anime" }));
         const rawGroups = {};
 
@@ -286,14 +286,13 @@ builder.defineCatalogHandler(async ({ type, id, extra = {}, config }) => {
             }
         });
 
-        // Attach tags only when Hentai.tv returned an exact series-title match.
-        // When a genre is selected, include Hentai.tv series not already present
-        // in AniList/Sukebei results so the genre search can still discover them.
+        // Attach the selected Hanime.red tag only to exact normalized title matches.
+        // When a genre is selected, include matching Hanime.red archive entries too.
         const seenNames = new Set();
         const enriched = [];
         for (const meta of finalMetas) {
-            const match = findExactSeriesMatch(meta.name, hentaiTVSeries) || findExactSeriesMatch(meta.englishName, hentaiTVSeries);
-            const enrichedMeta = match ? { ...meta, genres: safeTags(match.tags), hentaiTvSlug: match.titleSlug } : meta;
+            const match = findExactSeriesMatch(meta.name, hanimeRedSeries) || findExactSeriesMatch(meta.englishName, hanimeRedSeries);
+            const enrichedMeta = match ? { ...meta, genres: safeTags(match.tags), hanimeRedSlug: match.titleSlug } : meta;
             if (!selectedGenre || (enrichedMeta.genres || []).some(tag => tag.toLowerCase() === selectedGenre.toLowerCase())) {
                 enriched.push(enrichedMeta);
                 seenNames.add(String(enrichedMeta.name || "").toLowerCase());
@@ -301,10 +300,10 @@ builder.defineCatalogHandler(async ({ type, id, extra = {}, config }) => {
         }
 
         if (selectedGenre) {
-            const matchingSeries = filterSeriesByTag(hentaiTVSeries, selectedGenre);
+            const matchingSeries = filterSeriesByTag(hanimeRedSeries, selectedGenre);
             for (const series of matchingSeries) {
                 if (!seenNames.has(series.title.toLowerCase())) {
-                    enriched.push(makeHentaiTVMeta(series, toBase64Safe));
+                    enriched.push(makeHanimeRedMeta(series, toBase64Safe));
                     seenNames.add(series.title.toLowerCase());
                 }
             }
@@ -436,19 +435,9 @@ builder.defineMetaHandler(async ({ type, id, config }) => {
             return { meta: null, cacheMaxAge: 60 };
         }
 
-        // TAG EDIT AREA 3/3: Detail-page metadata enrichment.
-        // This performs one cached Hentai.tv title search when a user opens an item.
-        // Only exact title/titleSlug matches are trusted; unmatched items stay untagged.
-        try {
-            const htvSeries = await searchHentaiTVSeries(meta.name || searchTitle);
-            const htvMatch = findExactSeriesMatch(meta.name, htvSeries) || findExactSeriesMatch(searchTitle, htvSeries);
-            if (htvMatch) {
-                meta.genres = safeTags(htvMatch.tags);
-                meta.hentaiTvSlug = htvMatch.titleSlug;
-            }
-        } catch (tagError) {
-            // Tag enrichment is optional and must never break metadata or stream resolution.
-        }
+        // TAG EDIT AREA 3/3: Hanime.red genre metadata is assigned by its tag archive
+        // in the catalog handler. Avoid per-item scraping here to keep requests and
+        // memory bounded on Render free tier.
 
         meta.type = "anime";
 
