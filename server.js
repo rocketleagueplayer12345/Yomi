@@ -89,8 +89,9 @@ app.get("/sukebei-status", async (req, res) => {
     }
 });
 
+
 // Main Configuration UI routing
-app.get("/configure", (req, res) => {
+app.get(["/configure", "/:config/configure"], (req, res) => {
     res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
