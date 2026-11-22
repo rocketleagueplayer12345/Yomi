@@ -69,7 +69,22 @@ catalogs: [
         }
     ]
 },
-    { id: "sukebei_trending", type: "anime", name: "Yomi Trending", extra: [{ name: "genre", options: SAFE_HANIMERED_TAGS, isRequired: false }] },
+    {
+    id: "sukebei_trending",
+    type: "anime",
+    name: "Yomi Trending",
+    extra: [
+        {
+            name: "genre",
+            options: SAFE_HANIMERED_TAGS,
+            isRequired: false
+        },
+        {
+            name: "skip",
+            isRequired: false
+        }
+    ]
+},
     { id: "sukebei_top", type: "anime", name: "Yomi Top Rated", extra: [{ name: "genre", options: SAFE_HANIMERED_TAGS, isRequired: false }] },
     { id: "sukebei_search", type: "anime", name: "Yomi Search", extra: [
         { name: "search", isRequired: true },
@@ -109,7 +124,14 @@ function applyTitlePreference(metas, userConfig) {
 }
 
 // Fetch enough Hanime.red pages to fill one Stremio catalog batch.
-async function getHanimeRedCatalogBatch(tag, skip, pageSize = 36) {
+
+// Fetch enough Hanime.red pages to fill one Stremio catalog batch.
+async function getHanimeRedCatalogBatch(
+    tag,
+    skip,
+    pageSize = 100,
+    sort = "Most Recent"
+) {
     const targetCount = skip + pageSize;
     const MAX_SOURCE_PAGES = 100;
 
@@ -124,7 +146,7 @@ async function getHanimeRedCatalogBatch(tag, skip, pageSize = 36) {
     ) {
         const sourceSeries = await browseHanimeRedByTag(
             tag,
-            "Most Recent",
+            sort,
             sourcePage
         );
 
@@ -310,77 +332,100 @@ builder.defineCatalogHandler(async ({ type, id, extra = {}, config }) => {
     // LATEST CATALOG
     
     // LATEST CATALOG
-    if (id === "sukebei_latest" && userConfig.showLatest !== false) {
+   
+if (id === "sukebei_latest" && userConfig.showLatest !== false) {
 
-        if (selectedGenre) {
-            const PAGE_SIZE = 36;
-            const skip = Math.max(
-                0,
-                Number.parseInt(extra.skip, 10) || 0
-            );
+    if (selectedGenre) {
+        const PAGE_SIZE = 100;
+        const skip = Math.max(
+            0,
+            Number.parseInt(extra.skip, 10) || 0
+        );
 
-            const batch = await getHanimeRedCatalogBatch(
-                selectedGenre,
-                skip,
-                PAGE_SIZE
-            );
+        const batch = await getHanimeRedCatalogBatch(
+            selectedGenre,
+            skip,
+            PAGE_SIZE,
+            "Most Recent"
+        );
 
-            const finalMetas = applyTitlePreference(
-                batch.metas,
-                userConfig
-            );
+        const finalMetas = applyTitlePreference(
+            batch.metas,
+            userConfig
+        );
 
-            console.log("[YOMI PAGINATION]", {
-                catalog: id,
-                genre: selectedGenre,
-                skip,
-                pagesFetched: batch.pagesFetched,
-                totalCollected: batch.totalCollected,
-                returned: finalMetas.length
-            });
-
-            return {
-                metas: finalMetas,
-                cacheMaxAge: 300
-            };
-        }
-
-        const metas = (await getLatestAdultAnime())
-            .map(m => ({ ...m, type: "anime" }));
+        console.log("[YOMI PAGINATION]", {
+            catalog: id,
+            genre: selectedGenre,
+            skip,
+            pagesFetched: batch.pagesFetched,
+            totalCollected: batch.totalCollected,
+            returned: finalMetas.length
+        });
 
         return {
-            metas: applyTitlePreference(metas, userConfig),
-            cacheMaxAge: 14400
+            metas: finalMetas,
+            cacheMaxAge: 300
         };
     }
+
+    const metas = (await getLatestAdultAnime())
+        .map(m => ({ ...m, type: "anime" }));
+
+    return {
+        metas: applyTitlePreference(metas, userConfig),
+        cacheMaxAge: 14400
+    };
+}
 
 
     // TRENDING CATALOG
-    if (id === "sukebei_trending" && userConfig.showTrending !== false) {
-        if (selectedGenre) {
-            const series = await browseHanimeRedByTag(
-                selectedGenre,
-                "Most Recent",
-                extra.skip ? Math.floor(Number(extra.skip) / 36) + 1 : 1
-            );
+    
+if (id === "sukebei_trending" && userConfig.showTrending !== false) {
 
-            const metas = filterSeriesByTag(series, selectedGenre)
-                .map(item => makeHanimeRedMeta(item, toBase64Safe));
+    if (selectedGenre) {
+        const PAGE_SIZE = 100;
+        const skip = Math.max(
+            0,
+            Number.parseInt(extra.skip, 10) || 0
+        );
 
-            return {
-                metas: applyTitlePreference(metas, userConfig),
-                cacheMaxAge: 21600
-            };
-        }
+        const batch = await getHanimeRedCatalogBatch(
+            selectedGenre,
+            skip,
+            PAGE_SIZE,
+            "Most Popular"
+        );
 
-        const metas = (await getTrendingAdultAnime())
-            .map(m => ({ ...m, type: "anime" }));
+        const finalMetas = applyTitlePreference(
+            batch.metas,
+            userConfig
+        );
+
+        console.log("[YOMI PAGINATION]", {
+            catalog: id,
+            genre: selectedGenre,
+            skip,
+            sort: "Most Popular",
+            pagesFetched: batch.pagesFetched,
+            totalCollected: batch.totalCollected,
+            returned: finalMetas.length
+        });
 
         return {
-            metas: applyTitlePreference(metas, userConfig),
-            cacheMaxAge: 43200
+            metas: finalMetas,
+            cacheMaxAge: 300
         };
     }
+
+    const metas = (await getTrendingAdultAnime())
+        .map(m => ({ ...m, type: "anime" }));
+
+    return {
+        metas: applyTitlePreference(metas, userConfig),
+        cacheMaxAge: 43200
+    };
+}
 
     // TOP CATALOG
     if (id === "sukebei_top" && userConfig.showTop !== false) {
