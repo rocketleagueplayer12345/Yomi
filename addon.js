@@ -36,7 +36,7 @@ function fromBase64Safe(str) { return Buffer.from(str.replace(/-/g, "+").replace
 //===============
 const manifest = {
     id: "org.community.yomi",
-    version: "9.3.6", 
+    version: "9.3.7", 
     name: "Yomi",
     logo: BASE_URL + "/yomi.png", 
     description: "The ultimate Sukebei gateway. The Biggest Collection of Hentai.",
@@ -53,7 +53,22 @@ const manifest = {
 // The Kitsu catalog stubs from the previous manifest had no matching catalog
 // handler in this addon, so they returned empty results and are not advertised.
 catalogs: [
-    { id: "sukebei_latest", type: "anime", name: "Yomi Latest Releases", extra: [{ name: "genre", options: SAFE_HANIMERED_TAGS, isRequired: false }] },
+    {
+    id: "sukebei_latest",
+    type: "anime",
+    name: "Yomi Latest Releases",
+    extra: [
+        {
+            name: "genre",
+            options: SAFE_HANIMERED_TAGS,
+            isRequired: false
+        },
+        {
+            name: "skip",
+            isRequired: false
+        }
+    ]
+},
     { id: "sukebei_trending", type: "anime", name: "Yomi Trending", extra: [{ name: "genre", options: SAFE_HANIMERED_TAGS, isRequired: false }] },
     { id: "sukebei_top", type: "anime", name: "Yomi Top Rated", extra: [{ name: "genre", options: SAFE_HANIMERED_TAGS, isRequired: false }] },
     { id: "sukebei_search", type: "anime", name: "Yomi Search", extra: [
