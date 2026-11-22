@@ -85,7 +85,22 @@ catalogs: [
         }
     ]
 },
-    { id: "sukebei_top", type: "anime", name: "Yomi Top Rated", extra: [{ name: "genre", options: SAFE_HANIMERED_TAGS, isRequired: false }] },
+   {
+    id: "sukebei_top",
+    type: "anime",
+    name: "Yomi Top Rated",
+    extra: [
+        {
+            name: "genre",
+            options: SAFE_HANIMERED_TAGS,
+            isRequired: false
+        },
+        {
+            name: "skip",
+            isRequired: false
+        }
+    ]
+},
     { id: "sukebei_search", type: "anime", name: "Yomi Search", extra: [
         { name: "search", isRequired: true },
         { name: "genre", options: SAFE_HANIMERED_TAGS, isRequired: false }
@@ -427,21 +442,42 @@ console.log("[YOMI PAGINATION]", {
     };
 }
 
+
     // TOP CATALOG
     if (id === "sukebei_top" && userConfig.showTop !== false) {
+
         if (selectedGenre) {
-            const series = await browseHanimeRedByTag(
-                selectedGenre,
-                "Most Recent",
-                extra.skip ? Math.floor(Number(extra.skip) / 36) + 1 : 1
+            const PAGE_SIZE = 100;
+            const skip = Math.max(
+                0,
+                Number.parseInt(extra.skip, 10) || 0
             );
 
-            const metas = filterSeriesByTag(series, selectedGenre)
-                .map(item => makeHanimeRedMeta(item, toBase64Safe));
+            const batch = await getHanimeRedCatalogBatch(
+                selectedGenre,
+                skip,
+                PAGE_SIZE,
+                "Most Recent"
+            );
+
+            const finalMetas = applyTitlePreference(
+                batch.metas,
+                userConfig
+            );
+
+            console.log("[YOMI PAGINATION]", {
+                catalog: id,
+                genre: selectedGenre,
+                skip,
+                sort: "Most Recent",
+                pagesFetched: batch.pagesFetched,
+                totalCollected: batch.totalCollected,
+                returned: finalMetas.length
+            });
 
             return {
-                metas: applyTitlePreference(metas, userConfig),
-                cacheMaxAge: 21600
+                metas: finalMetas,
+                cacheMaxAge: 300
             };
         }
 
