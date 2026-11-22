@@ -226,117 +226,202 @@ function generateDynamicPoster(title) {
 // Hanime.red tag archive pages are parsed into compact series entries by
 // lib/hanimered.js. If a permitted tag is added to lib/hanimered-tags.js, no
 // handler changes are needed.
+
 builder.defineCatalogHandler(async ({ type, id, extra = {}, config }) => {
-       
+
     console.log('[YOMI CATALOG HANDLER HIT]', {
         type,
         id,
         genre: extra.genre,
         skip: extra.skip
     });
-    
+
     const userConfig = parseConfig(config);
     const selectedGenre = typeof extra.genre === "string"
-    ? extra.genre.split(".json")[0].split("?")[0].trim()
-    : "";
+        ? extra.genre.split(".json")[0].split("?")[0].trim()
+        : "";
 
-    // For genre-filtered browse catalogs, use Hanime.red's own tag archive page.
-    // This avoids dozens of per-title requests and keeps Render memory/network use low.
+    // LATEST CATALOG
     if (id === "sukebei_latest" && userConfig.showLatest !== false) {
         if (selectedGenre) {
-            const series = await browseHanimeRedByTag(selectedGenre, "Most Recent", extra.skip ? Math.floor(Number(extra.skip) / 36) + 1 : 1);
-            const metas = filterSeriesByTag(series, selectedGenre).map(item => makeHanimeRedMeta(item, toBase64Safe));
-            return { metas: applyTitlePreference(metas, userConfig), cacheMaxAge: 21600 };
+            const series = await browseHanimeRedByTag(
+                selectedGenre,
+                "Most Recent",
+                extra.skip ? Math.floor(Number(extra.skip) / 36) + 1 : 1
+            );
+
+            console.log("[YOMI DEBUG] Hanime.red series:", series.length);
+            console.log("[YOMI DEBUG] First series:", series[0]);
+
+            const filtered = filterSeriesByTag(series, selectedGenre);
+
+            console.log("[YOMI DEBUG] Filtered series:", filtered.length);
+            console.log("[YOMI DEBUG] First filtered series:", filtered[0]);
+
+            const metas = filtered.map(item =>
+                makeHanimeRedMeta(item, toBase64Safe)
+            );
+
+            console.log("[YOMI DEBUG] Converted metas:", metas.length);
+
+            const finalMetas = applyTitlePreference(metas, userConfig);
+
+            console.log("[YOMI DEBUG] Final metas:", finalMetas.length);
+
+            return {
+                metas: finalMetas,
+                cacheMaxAge: 21600
+            };
         }
-        const metas = (await getLatestAdultAnime()).map(m => ({ ...m, type: "anime" }));
-        return { metas: applyTitlePreference(metas, userConfig), cacheMaxAge: 14400 };
+
+        const metas = (await getLatestAdultAnime())
+            .map(m => ({ ...m, type: "anime" }));
+
+        return {
+            metas: applyTitlePreference(metas, userConfig),
+            cacheMaxAge: 14400
+        };
     }
 
+    // TRENDING CATALOG
     if (id === "sukebei_trending" && userConfig.showTrending !== false) {
-       
-if (selectedGenre) {
-    const series = await browseHanimeRedByTag(
-        selectedGenre,
-        "Most Recent",
-        extra.skip ? Math.floor(Number(extra.skip) / 36) + 1 : 1
-    );
+        if (selectedGenre) {
+            const series = await browseHanimeRedByTag(
+                selectedGenre,
+                "Most Recent",
+                extra.skip ? Math.floor(Number(extra.skip) / 36) + 1 : 1
+            );
 
-    console.log("[YOMI DEBUG] Hanime.red series:", series.length);
-    console.log("[YOMI DEBUG] First series:", series[0]);
+            const metas = filterSeriesByTag(series, selectedGenre)
+                .map(item => makeHanimeRedMeta(item, toBase64Safe));
 
-    const filtered = filterSeriesByTag(series, selectedGenre);
-
-    console.log("[YOMI DEBUG] Filtered series:", filtered.length);
-    console.log("[YOMI DEBUG] First filtered series:", filtered[0]);
-
-    const metas = filtered.map(item =>
-        makeHanimeRedMeta(item, toBase64Safe)
-    );
-
-    console.log("[YOMI DEBUG] Converted metas:", metas.length);
-    console.log("[YOMI DEBUG] First meta:", metas[0]);
-
-    const finalMetas = applyTitlePreference(metas, userConfig);
-
-    console.log("[YOMI DEBUG] Final metas:", finalMetas.length);
-
-    return { metas: finalMetas, cacheMaxAge: 21600 };
-}
-
+            return {
+                metas: applyTitlePreference(metas, userConfig),
+                cacheMaxAge: 21600
+            };
         }
-        const metas = (await getTrendingAdultAnime()).map(m => ({ ...m, type: "anime" }));
-        return { metas: applyTitlePreference(metas, userConfig), cacheMaxAge: 43200 };
+
+        const metas = (await getTrendingAdultAnime())
+            .map(m => ({ ...m, type: "anime" }));
+
+        return {
+            metas: applyTitlePreference(metas, userConfig),
+            cacheMaxAge: 43200
+        };
     }
 
+    // TOP CATALOG
     if (id === "sukebei_top" && userConfig.showTop !== false) {
         if (selectedGenre) {
-            const series = await browseHanimeRedByTag(selectedGenre, "Most Recent", extra.skip ? Math.floor(Number(extra.skip) / 36) + 1 : 1);
-            const metas = filterSeriesByTag(series, selectedGenre).map(item => makeHanimeRedMeta(item, toBase64Safe));
-            return { metas: applyTitlePreference(metas, userConfig), cacheMaxAge: 21600 };
+            const series = await browseHanimeRedByTag(
+                selectedGenre,
+                "Most Recent",
+                extra.skip ? Math.floor(Number(extra.skip) / 36) + 1 : 1
+            );
+
+            const metas = filterSeriesByTag(series, selectedGenre)
+                .map(item => makeHanimeRedMeta(item, toBase64Safe));
+
+            return {
+                metas: applyTitlePreference(metas, userConfig),
+                cacheMaxAge: 21600
+            };
         }
-        const metas = (await getTopAdultAnime()).map(m => ({ ...m, type: "anime" }));
-        return { metas: applyTitlePreference(metas, userConfig), cacheMaxAge: 43200 };
+
+        const metas = (await getTopAdultAnime())
+            .map(m => ({ ...m, type: "anime" }));
+
+        return {
+            metas: applyTitlePreference(metas, userConfig),
+            cacheMaxAge: 43200
+        };
     }
 
+    // SEARCH CATALOG
     if (id === "sukebei_search" && extra.search) {
         let cleanQuery = sanitizeSearchQuery(extra.search);
         const lowerQuery = cleanQuery.toLowerCase();
-        if (KNOWN_ALIASES[lowerQuery]) cleanQuery = KNOWN_ALIASES[lowerQuery];
+
+        if (KNOWN_ALIASES[lowerQuery]) {
+            cleanQuery = KNOWN_ALIASES[lowerQuery];
+        }
 
         const [anilistMetas, sukebeiTorrents] = await Promise.all([
             searchAdultAnime(extra.search),
             searchSukebeiForHentai(cleanQuery)
         ]);
-        const hanimeRedSeries = selectedGenre ? await browseHanimeRedByTag(selectedGenre, "Most Recent", extra.skip ? Math.floor(Number(extra.skip) / 36) + 1 : 1) : [];
-        const finalMetas = anilistMetas.map(m => ({ ...m, type: "anime" }));
+
+        const hanimeRedSeries = selectedGenre
+            ? await browseHanimeRedByTag(
+                selectedGenre,
+                "Most Recent",
+                extra.skip ? Math.floor(Number(extra.skip) / 36) + 1 : 1
+            )
+            : [];
+
+        const finalMetas = anilistMetas.map(m => ({
+            ...m,
+            type: "anime"
+        }));
+
         const rawGroups = {};
 
         sukebeiTorrents.forEach(t => {
             const cleanName = cleanTorrentTitle(t.title);
-            if (cleanName.length > 2 && !rawGroups[cleanName]) rawGroups[cleanName] = t;
-        });
 
-        Object.keys(rawGroups).forEach(cleanName => {
-            if (!finalMetas.some(m => m.name && m.name.toLowerCase() === cleanName.toLowerCase())) {
-                finalMetas.push({ id: "sukebei:" + toBase64Safe(cleanName), type: "anime", name: cleanName.replace(/^\[.*?\]\s*/g, "").trim(), poster: generateDynamicPoster(cleanName) });
+            if (cleanName.length > 2 && !rawGroups[cleanName]) {
+                rawGroups[cleanName] = t;
             }
         });
 
-        // Attach the selected Hanime.red tag only to exact normalized title matches.
-        // When a genre is selected, include matching Hanime.red archive entries too.
+        Object.keys(rawGroups).forEach(cleanName => {
+            if (!finalMetas.some(m =>
+                m.name && m.name.toLowerCase() === cleanName.toLowerCase()
+            )) {
+                finalMetas.push({
+                    id: "sukebei:" + toBase64Safe(cleanName),
+                    type: "anime",
+                    name: cleanName.replace(/^\[.*?\]\s*/g, "").trim(),
+                    poster: generateDynamicPoster(cleanName)
+                });
+            }
+        });
+
         const seenNames = new Set();
         const enriched = [];
+
         for (const meta of finalMetas) {
-            const match = findExactSeriesMatch(meta.name, hanimeRedSeries) || findExactSeriesMatch(meta.englishName, hanimeRedSeries);
-            const enrichedMeta = match ? { ...meta, genres: safeTags(match.tags), hanimeRedSlug: match.titleSlug } : meta;
-            if (!selectedGenre || (enrichedMeta.genres || []).some(tag => tag.toLowerCase() === selectedGenre.toLowerCase())) {
+            const match =
+                findExactSeriesMatch(meta.name, hanimeRedSeries) ||
+                findExactSeriesMatch(meta.englishName, hanimeRedSeries);
+
+            const enrichedMeta = match
+                ? {
+                    ...meta,
+                    genres: safeTags(match.tags),
+                    hanimeRedSlug: match.titleSlug
+                }
+                : meta;
+
+            if (
+                !selectedGenre ||
+                (enrichedMeta.genres || []).some(
+                    tag => tag.toLowerCase() === selectedGenre.toLowerCase()
+                )
+            ) {
                 enriched.push(enrichedMeta);
-                seenNames.add(String(enrichedMeta.name || "").toLowerCase());
+                seenNames.add(
+                    String(enrichedMeta.name || "").toLowerCase()
+                );
             }
         }
 
         if (selectedGenre) {
-            const matchingSeries = filterSeriesByTag(hanimeRedSeries, selectedGenre);
+            const matchingSeries = filterSeriesByTag(
+                hanimeRedSeries,
+                selectedGenre
+            );
+
             for (const series of matchingSeries) {
                 if (!seenNames.has(series.title.toLowerCase())) {
                     enriched.push(makeHanimeRedMeta(series, toBase64Safe));
@@ -345,10 +430,15 @@ if (selectedGenre) {
             }
         }
 
-        return { metas: applyTitlePreference(enriched, userConfig), cacheMaxAge: enriched.length === 0 ? 60 : 21600 };
+        return {
+            metas: applyTitlePreference(enriched, userConfig),
+            cacheMaxAge: enriched.length === 0 ? 60 : 21600
+        };
     }
+
     return { metas: [] };
 });
+
 
 //===============
 // META HANDLER
