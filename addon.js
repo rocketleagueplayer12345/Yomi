@@ -243,41 +243,39 @@ builder.defineCatalogHandler(async ({ type, id, extra = {}, config }) => {
 
     // LATEST CATALOG
     if (id === "sukebei_latest" && userConfig.showLatest !== false) {
-        if (selectedGenre) {
-            const series = await browseHanimeRedByTag(
-                selectedGenre,
-                "Most Recent",
-                extra.skip ? Math.floor(Number(extra.skip) / 36) + 1 : 1
-            );
+        
+if (selectedGenre) {
+    const PAGE_SIZE = 36;
+    const skip = Math.max(0, Number(extra.skip) || 0);
+    const page = Math.floor(skip / PAGE_SIZE) + 1;
 
-            console.log("[YOMI DEBUG] Hanime.red series:", series.length);
-            console.log("[YOMI DEBUG] First series:", series[0]);
+    const series = await browseHanimeRedByTag(
+        selectedGenre,
+        "Most Recent",
+        page
+    );
 
-            const filtered = filterSeriesByTag(series, selectedGenre);
+    const filtered = filterSeriesByTag(series, selectedGenre);
 
-            console.log("[YOMI DEBUG] Filtered series:", filtered.length);
-            console.log("[YOMI DEBUG] First filtered series:", filtered[0]);
+    const metas = filtered.map(item =>
+        makeHanimeRedMeta(item, toBase64Safe)
+    );
 
-            const metas = filtered.map(item =>
-                makeHanimeRedMeta(item, toBase64Safe)
-            );
+    const finalMetas = applyTitlePreference(metas, userConfig);
 
-            console.log("[YOMI DEBUG] Converted metas:", metas.length);
+    console.log("[YOMI PAGINATION]", {
+        catalog: id,
+        genre: selectedGenre,
+        skip,
+        hanimePage: page,
+        returned: finalMetas.length
+    });
 
-            const finalMetas = applyTitlePreference(metas, userConfig);
-
-           console.log("[YOMI DEBUG] Final metas:", finalMetas.length);
-
-console.log(
-    "[YOMI DEBUG] META SAMPLE:",
-    JSON.stringify(finalMetas.slice(0, 2), null, 2)
-);
-
-return {
-    metas: finalMetas,
-    cacheMaxAge: 21600
-};
-        }
+    return {
+        metas: finalMetas,
+        cacheMaxAge: 300
+    };
+}
 
         const metas = (await getLatestAdultAnime())
             .map(m => ({ ...m, type: "anime" }));
