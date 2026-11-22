@@ -253,10 +253,36 @@ builder.defineCatalogHandler(async ({ type, id, extra = {}, config }) => {
     }
 
     if (id === "sukebei_trending" && userConfig.showTrending !== false) {
-        if (selectedGenre) {
-            const series = await browseHanimeRedByTag(selectedGenre, "Most Recent", extra.skip ? Math.floor(Number(extra.skip) / 36) + 1 : 1);
-            const metas = filterSeriesByTag(series, selectedGenre).map(item => makeHanimeRedMeta(item, toBase64Safe));
-            return { metas: applyTitlePreference(metas, userConfig), cacheMaxAge: 21600 };
+       
+if (selectedGenre) {
+    const series = await browseHanimeRedByTag(
+        selectedGenre,
+        "Most Recent",
+        extra.skip ? Math.floor(Number(extra.skip) / 36) + 1 : 1
+    );
+
+    console.log("[YOMI DEBUG] Hanime.red series:", series.length);
+    console.log("[YOMI DEBUG] First series:", series[0]);
+
+    const filtered = filterSeriesByTag(series, selectedGenre);
+
+    console.log("[YOMI DEBUG] Filtered series:", filtered.length);
+    console.log("[YOMI DEBUG] First filtered series:", filtered[0]);
+
+    const metas = filtered.map(item =>
+        makeHanimeRedMeta(item, toBase64Safe)
+    );
+
+    console.log("[YOMI DEBUG] Converted metas:", metas.length);
+    console.log("[YOMI DEBUG] First meta:", metas[0]);
+
+    const finalMetas = applyTitlePreference(metas, userConfig);
+
+    console.log("[YOMI DEBUG] Final metas:", finalMetas.length);
+
+    return { metas: finalMetas, cacheMaxAge: 21600 };
+}
+
         }
         const metas = (await getTrendingAdultAnime()).map(m => ({ ...m, type: "anime" }));
         return { metas: applyTitlePreference(metas, userConfig), cacheMaxAge: 43200 };
