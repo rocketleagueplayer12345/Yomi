@@ -36,7 +36,7 @@ function fromBase64Safe(str) { return Buffer.from(str.replace(/-/g, "+").replace
 //===============
 const manifest = {
     id: "org.community.yomi",
-    version: "9.3.7", 
+    version: "9.3.6", 
     name: "Yomi",
     logo: BASE_URL + "/yomi.png", 
     description: "The ultimate Sukebei gateway. The Biggest Collection of Hentai.",
