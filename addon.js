@@ -236,7 +236,9 @@ builder.defineCatalogHandler(async ({ type, id, extra = {}, config }) => {
     });
     
     const userConfig = parseConfig(config);
-    const selectedGenre = typeof extra.genre === "string" ? extra.genre.trim() : "";
+    const selectedGenre = typeof extra.genre === "string"
+    ? extra.genre.split(".json")[0].split("?")[0].trim()
+    : "";
 
     // For genre-filtered browse catalogs, use Hanime.red's own tag archive page.
     // This avoids dozens of per-title requests and keeps Render memory/network use low.
