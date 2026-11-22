@@ -15,7 +15,7 @@
 // separately in lib/hentaitv.js and is used only for matching, not display.
 
 const SAFE_HENTAITV_TAGS = Object.freeze([
-    'Vanilla', 'anal', 'Romance', 'Big Boobs', 'Maid', 'Comedy',
+    'Vanilla', 'anal', 'Romance', 'Big Boobs', 'Maid', 'loli', 'teacher', 'shota', 'schoolgirl', 'school', 'Comedy',
     'incest', 'Glasses', 'Swimsuit', 'Uncensored', 'virgin', 'bondage',
     'Censored', 'Blow Job', 'Oral', 'Creampie', 'fantasy', 'Masturbation',
     'Ahegao', 'harem', 'Threesome', 'milf', 'Cosplay', 'ntr', 'Tsundere',
