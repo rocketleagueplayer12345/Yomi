@@ -266,12 +266,17 @@ builder.defineCatalogHandler(async ({ type, id, extra = {}, config }) => {
 
             const finalMetas = applyTitlePreference(metas, userConfig);
 
-            console.log("[YOMI DEBUG] Final metas:", finalMetas.length);
+           console.log("[YOMI DEBUG] Final metas:", finalMetas.length);
 
-            return {
-                metas: finalMetas,
-                cacheMaxAge: 21600
-            };
+console.log(
+    "[YOMI DEBUG] META SAMPLE:",
+    JSON.stringify(finalMetas.slice(0, 2), null, 2)
+);
+
+return {
+    metas: finalMetas,
+    cacheMaxAge: 21600
+};
         }
 
         const metas = (await getLatestAdultAnime())
