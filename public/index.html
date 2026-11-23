@@ -459,7 +459,9 @@
             }
 
             const protocol = window.location.protocol === "https:" ? "https://" : "http://";
-            const manifestUrl = `${protocol}${host}/${configStr}/manifest.json`;
+
+const manifestUrl =
+    `${protocol}${host}/${configStr}/manifest.json?v=9.3.7`;
             
             displayBox.value = manifestUrl;
             displayBox.style.opacity = "1";
