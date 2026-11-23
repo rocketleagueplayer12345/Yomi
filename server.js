@@ -128,8 +128,14 @@ app.get("/:config?/manifest.json", (req, res) => {
         return true;
     });
 
-    res.setHeader("Cache-Control", "max-age=86400, public");
-    res.json(dynamicManifest);
+    res.setHeader(
+    "Cache-Control",
+    "no-store, no-cache, must-revalidate, proxy-revalidate"
+);
+res.setHeader("Pragma", "no-cache");
+res.setHeader("Expires", "0");
+
+res.json(dynamicManifest);
 });
 
 //===============
